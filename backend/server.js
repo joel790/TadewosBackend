@@ -1,7 +1,8 @@
 const express = require("express");
 const cors = require("cors");
+const bodyParser = require("body-parser")
 const dotenv = require("dotenv");
-
+const sequelize = require("./config/database")
 const studentRoutes = require("./routes/studentRoutes");
 // Load environment variables
 dotenv.config();
@@ -12,12 +13,14 @@ const port = process.env.PORT;
 // Middleware
 // app.use(cors());
 app.use(express.json());
+app.use(bodyParser.json());
+
 
 // Routes
-app.use('api/students', studentRoutes);
+app.use('/api/students', studentRoutes);
 
 // Test DB connection and start server
-sequelize.authenticate()
+sequelize.sync()
     .then(() => {
         console.log('Database connected...');
         app.listen(port, () => {

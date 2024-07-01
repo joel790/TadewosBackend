@@ -1,19 +1,21 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser")
-const dotenv = require("dotenv");
+const cookieParser = require("cookie-parser");
+const dotenv = require("dotenv").config();
 const sequelize = require("./config/database")
 const studentRoutes = require("./routes/studentRoutes");
 // Load environment variables
-dotenv.config();
 
 const app = express();
+
 const port = process.env.PORT;
 
 // Middleware
-// app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+app.use(cookieParser());
+
 
 
 // Routes

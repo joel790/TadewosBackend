@@ -1,6 +1,8 @@
-const { where } = require('sequelize');
 const Student = require('../models/student');
+require("dotenv").config();
 const bcrypt = require('bcryptjs');
+const generateToken = require('../utils/generateToken/generateToken');
+
 
 exports.getAllStudents = async (req, res) => {
   try {
@@ -11,34 +13,92 @@ exports.getAllStudents = async (req, res) => {
   }
 };
 
+
 exports.createStudent = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
     // Validate request body
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'All fields are required' });
     }
-    const studentExist = await Student.findOne({ email })
-    if (studentExist) {
-      res.status(400).json("student already exist")
+    // Check if the student already exists
+    const student = await Student.findOne({ where: { email } });
+    if (student) {
+      return res.status(400).json({ error: 'Student already exists' });
     }
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const student = {
+    // Create the student
+    const newStudent = await Student.create({
       name,
       email,
       password: hashedPassword,
-    };
-    // Create the student
-    const newStudent = await Student.create(student);
+    });
+
+    // Generate a JWT token
+    const token = generateToken(newStudent._id);
+
+    // Set the JWT as a cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      expires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      secure: process.env.NODE_ENV, // Set secure flag in production
+      sameSite: 'none'
+    });
+
     res.status(201).json({
       message: 'Student created successfully',
-      student: newStudent
+      newStudent,
+      token
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to create student' });
   }
 };
+
+
+//login user
+exports.loginStudent = async (req, res) => {
+  try {
+    // Take inputs from the user
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ message: "Please enter an email and a password" });
+    }
+
+    // Check if student exists
+    const student = await Student.findOne({ where: { email } });
+    if (!student) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // Check if password is correct
+    const isPasswordCorrect = await bcrypt.compare(password, student.password);
+    if (!isPasswordCorrect) {
+      return res.status(401).json({ message: "Enter correct password" });
+    }
+
+    // Generate token
+    const token = generateToken(student.id);
+
+    // Set tokens as cookies
+    res.cookie('token', token, {
+      httpOnly: true,
+      expires: new Date(Date.now() + 1 * 60 * 1000), // 1 minute
+      secure: process.env.NODE_ENV , // Set to true in production
+      sameSite: 'none'
+    });
+    // Respond with student data and token
+    res.status(200).json({ student, token });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 exports.updateStudent = async (req, res) => {
   try {
